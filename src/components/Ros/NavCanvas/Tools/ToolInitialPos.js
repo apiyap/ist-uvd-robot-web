@@ -1,62 +1,26 @@
 import { ToolObject } from "../ToolObject";
-import { drawCross, toRadians,toDegrees } from "../Utiles";
-import { drawArrow } from '../Arrow';
-
-import {
-  scale,
-  inverse,
-  rotate,
-  translate,
-  compose,
-  applyToPoint,
-} from "transformation-matrix";
-
 import { library, icon } from "@fortawesome/fontawesome-svg-core";
-import { faMapMarkerAlt } from "@fortawesome/free-solid-svg-icons";
+import { faCrosshairs } from "@fortawesome/free-solid-svg-icons";
 
-library.add(faMapMarkerAlt);
+library.add(faCrosshairs);
 
-const RouteCursor = icon({ prefix: "fas", iconName: "map-marker-alt" });
+const ToolCursor = icon({ prefix: "fas", iconName: "crosshairs" });
 
-//IconPathData
-
-export class ToolRoute extends ToolObject {
+export class ToolInitialPos extends ToolObject {
   constructor(engine, options) {
     super(engine, options);
+
     options = options || {};
-    this.name = options.ros || "ROUTE";
-    this.icon = ["fas", "route"];
+    this.name = options.ros || "INITPOS";
+    this.icon = ["fas", "crosshairs"];
+    this.visible = true;
+    this.enabled = true;
+
     this.cursor = this._createCursor();
-
-    this.dragInfo = {
-      isDragging: false,
-      startX: 0,
-      startY: 0,
-      endX: 0,
-      endY: 0,
-      diffX: 0,
-      diffY: 0,
-      canvasX: 0,
-      canvasY: 0,
-    };
-
-    this.goalInfo = {
-      pos: {
-        x: 0,
-        y: 0,
-      },
-      end: {
-        x : 0,
-        y : 0
-      },
-      ang: 0,
-      distance: 0,
-    };
   }
-
   _createCursor() {
     var canvas = document.createElement("canvas");
-    canvas.width = 16;
+    canvas.width = 24;
     canvas.height = 24;
     var ctx = canvas.getContext("2d");
     // ctx.fillStyle = "#000000";
@@ -71,18 +35,19 @@ export class ToolRoute extends ToolObject {
     // ctx.stroke(path);
 
     ctx.scale(
-      canvas.width / RouteCursor.icon[0],
-      canvas.height / RouteCursor.icon[1]
+      canvas.width / ToolCursor.icon[0],
+      canvas.height / ToolCursor.icon[1]
     );
     ctx.fillStyle = "blue";
-    ctx.lineWidth = 40;
+    ctx.lineWidth = 4;
     ctx.strokeStyle = "white";
-    var path = new Path2D(RouteCursor.icon[4]);
+    //console.log(ToolCursor.icon[4])
+    var path = new Path2D(ToolCursor.icon[4]);
     //ctx.stroke(path);
     ctx.fill(path);
 
     var dataURL = canvas.toDataURL("image/png");
-    return "url(" + dataURL + ") 8 24, pointer";
+    return "url(" + dataURL + ") 12 12, pointer";
   }
 
   getCursor() {
@@ -92,22 +57,23 @@ export class ToolRoute extends ToolObject {
     // "url('data:image/png;base64,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') 0 0, pointer "
     // ];
     // return cursors[0];
-    //console.log(RouteCursor);
+    //console.log(this.cursor);
     return this.cursor;
+  }
+
+  _dragStart(e) {
+    if (typeof this.engine.setInitialPos === "function")
+      this.engine.setInitialPos({ x: e.x, y: e.y });
   }
 
   onMouseDown(e) {
     this._dragStart({ x: e.offsetX, y: e.offsetY });
   }
 
-  onMouseMove(e) {
-    this._dragMove({ x: e.offsetX, y: e.offsetY });
-  }
+  onMouseMove(e) {}
 
-  onMouseUp(e) {
-    this._dragEnd({ x: e.offsetX, y: e.offsetY });
-  }
-
+  onMouseUp(e) {}
+  onMouseWheel(e) {}
   onTouchStart(e) {
     const touch = e.touches[0];
     const rect = e.target.getBoundingClientRect();
@@ -115,142 +81,6 @@ export class ToolRoute extends ToolObject {
     // console.log(touch);
     this._dragStart({ x: touch.clientX - rect.x, y: touch.clientY - rect.y });
   }
-
-  onTouchMove(e) {
-    const touch = e.touches[0];
-    const rect = e.target.getBoundingClientRect();
-
-    //console.log(touch);
-    this._dragMove({ x: touch.clientX - rect.x, y: touch.clientY - rect.y });
-  }
-
-  onTouchEnd(e) {
-    const touch = e.changedTouches[0];
-    const rect = e.target.getBoundingClientRect();
-
-    //console.log(touch);
-    this._dragEnd({ x: touch.clientX - rect.x, y: touch.clientY - rect.y });
-  }
-
-  draw(tr) {
-    
-
-    if (this.dragInfo.isDragging) {
-      
-      var tr = inverse(this.engine.getTransform()); // draw in world coordinate
-      var p = applyToPoint(tr, {
-        x: this.dragInfo.startX,
-        y: this.dragInfo.startY,
-      });
-      drawCross(this.engine.context, p, 4, "blue", 1);
-
-      var p0 = applyToPoint(tr, {
-        x: this.dragInfo.startX,
-        y: this.dragInfo.startY,
-      });
-      var p1 = applyToPoint(tr, {
-        x: this.dragInfo.endX,
-        y: this.dragInfo.endY,
-      });
-
-      // //drawArrow(this.engine.context, p0.x, p0.y, p1.x, p1.y, 1, 1, toRadians(30), 4, "blue", 1);
-
-      this.engine.context.beginPath();
-      this.engine.context.strokeStyle = "blue";
-      //this.engine.context.fillStyle = color;
-      this.engine.context.lineWidth = 1;
-      this.engine.context.moveTo(p0.x, p0.y);
-      this.engine.context.lineTo(p1.x, p1.y);
-      this.engine.context.stroke();
-
-      this.engine.context.beginPath();
-      this.engine.context.lineWidth = 1;
-      this.engine.context.arc(p0.x, p0.y, 5, 0, 2 * Math.PI);
-      this.engine.context.stroke();
-
-
-      // this.engine.context.save();
-      // this.engine.context.translate(p1.x, p1.y);
-      
-      // this.engine.context.rotate(this.goalInfo.ang - toRadians(90));
-      // const l = 10;
-      // const ang =15;
-      // const ang1 = toRadians(ang);
-      // const ang2 = toRadians(-ang);
-      // var h1 = { x: l*Math.cos(ang1), y: l*Math.sin(ang1)};
-      // var h2 = { x: l*Math.cos(ang2), y: l*Math.sin(ang2)};
-      // this.engine.context.beginPath();
-      // this.engine.context.strokeStyle = "blue";
-      // //this.engine.context.fillStyle = color;
-      // this.engine.context.lineWidth = 1;
-      // this.engine.context.moveTo(0, 0);
-      // this.engine.context.lineTo(h1.x, h1.y);
-      // this.engine.context.moveTo(0, 0);
-      // this.engine.context.lineTo(h2.x, h2.y);
-      // this.engine.context.stroke();
-      // this.engine.context.restore();
-
-  
-    }
-
-    ;
-  }
-
-  _dragStart(p) {
-    this.dragInfo.startX = p.x;
-    this.dragInfo.startY = p.y;
-    this.dragInfo.endX = p.x;
-    this.dragInfo.endY = p.y;
-
-    this.dragInfo.diffX = 0;
-    this.dragInfo.diffY = 0;
-
-    this.goalInfo = this.engine.getGoal();
-    this.goalInfo.pos.x = this.dragInfo.startX;
-    this.goalInfo.pos.y = this.dragInfo.startY;
-    this.goalInfo.end.x = this.dragInfo.startX;
-    this.goalInfo.end.y = this.dragInfo.startY;
-
-    this.dragInfo.canvasX = this.goalInfo.pos.x;
-    this.dragInfo.canvasY = this.goalInfo.pos.y;
-    this.dragInfo.isDragging = true;
-  }
-  _dragMove(p) {
-    if (this.dragInfo.isDragging) {
-      this.dragInfo.endX = p.x;
-      this.dragInfo.endY = p.y;
-      this.goalInfo.end.x = p.x;
-      this.goalInfo.end.y = p.y;
-
-      //this.viewToRobot();
-      var dx = p.x  - this.dragInfo.startX;
-      var dy = p.y  - this.dragInfo.startY;
-
-      this.goalInfo.distance = Math.sqrt(dx * dx + dy * dy);
-
-      this.goalInfo.ang = Math.atan2(dy, dx);
-
-      
-      this.dragInfo.diffX = this.dragInfo.canvasX + dx;
-      this.dragInfo.diffY = this.dragInfo.canvasY + dy;
-
-      this.goalInfo.pos.x = this.dragInfo.startX;
-      this.goalInfo.pos.y = this.dragInfo.startY;
-
-
-      this.engine.setGoal(this.goalInfo);
-    }
-  }
-
-  _dragEnd(p) {
-    if (this.dragInfo.isDragging) {
-      this.dragInfo.isDragging = false;
-      this.engine.setGoal(this.goalInfo);
-      //console.log(toDegrees(this.goalInfo.ang))
-      //console.log(this.engine.getGoal())
-      if(typeof(this.engine.sendGoalROS) === "function") 
-        this.engine.sendGoalROS();
-    }
-  }
-
+  onTouchMove(e) {}
+  onTouchEnd(e) {}
 }

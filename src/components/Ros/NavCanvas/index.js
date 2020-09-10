@@ -11,7 +11,8 @@ import { rosQuaternionToGlobalTheta, low_pass_filter ,drawCross } from "./Utiles
 import { ToolObject } from "./ToolObject";
 import { ToolZoomPan } from "./Tools/ToolZoomPan";
 import { ToolRoute } from "./Tools/ToolRoute";
-import { ToolCancelGoal } from './Tools/ToolCancelGoal'
+import { ToolCancelGoal } from './Tools/ToolCancelGoal';
+import { ToolInitialPos } from './Tools/ToolInitialPos';
 
 export class NavCanvas {
   static min_scale = 0.25;
@@ -20,7 +21,6 @@ export class NavCanvas {
   constructor(canvas) {
     // Get a reference to the canvas
     this.canvas = document.getElementById(canvas);
-
     this.context = this.canvas.getContext("2d");
     this.secondsPassed = 0.0;
     this.oldTimeStamp = 0.0;
@@ -31,6 +31,7 @@ export class NavCanvas {
     this.toolObjects = {
       NONE: new ToolObject(this),
       ZOOMPAN: new ToolZoomPan(this),
+      INITPOS: new ToolInitialPos(this),
       ROUTE: new ToolRoute(this),
       CANCELGOAL: new ToolCancelGoal(this),
     };
@@ -143,6 +144,15 @@ export class NavCanvas {
     }
   }
 
+  setInitialPos(v){
+
+    if(this.gridObj!==null)
+    {
+      this.gridObj.setInitialPos(v);
+    }
+  }
+
+
   setActiveTool(v) {
     if (this.toolObjects[v]) {
       this.activeTool = v;
@@ -151,6 +161,8 @@ export class NavCanvas {
       this._setCursor();
     }
   }
+
+
 
   scaleUp() {
     if (this.scale < NavCanvas.max_scale) this.scale += this.scaleStep;

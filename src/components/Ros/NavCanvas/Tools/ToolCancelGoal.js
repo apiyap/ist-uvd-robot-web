@@ -12,41 +12,6 @@ export class ToolCancelGoal  extends ToolObject  {
       this.enabled = true;
     }
 
-    draw(tr) {}
-    update(t) {}
-    exit() {}
-
-    
-    getName(){
-        return this.name;
-    }
-    getCursor(){
-      return 'none';
-    }
-
-    onMouseDown(e){
-
-    }
-
-    onMouseMove(e){
-
-    }
-
-    onMouseUp(e){
-
-    }
-    onMouseWheel(e){
-
-    }
-    onTouchStart(e){
-
-    }
-    onTouchMove(e){
-
-    }
-    onTouchEnd(e){
-
-    }
 
 
 

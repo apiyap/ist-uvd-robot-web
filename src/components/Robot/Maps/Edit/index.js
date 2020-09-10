@@ -3,14 +3,16 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import Frame from "../../Frame";
 import ControlSidebar from "./ControlSidebar";
+import { Editor } from '../../../Ros/EditorCanvas/Editor';
 
 export default function EditMap() {
+
   return (
     <>
       <Frame>
-        <div className="container-fluid">
-          <h1>Edit map</h1>
-        </div>
+      <Editor
+          showToolbar = {true}
+        />
       </Frame>
       <ControlSidebar />
     </>

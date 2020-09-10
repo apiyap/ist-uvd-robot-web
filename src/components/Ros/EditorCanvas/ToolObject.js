@@ -10,7 +10,7 @@ export class ToolObject {
       this.enabled = true;
       this.cursor = 'none';
     }
-
+    init(){}
     draw(tr) {}
     update(t) {}
     exit() {}

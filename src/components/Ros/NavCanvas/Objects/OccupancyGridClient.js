@@ -52,6 +52,7 @@ export class OccupancyGridClient extends CanvasObject {
       },
     };
 
+    this.goalSetting = false;
     this.goalLocal = {
       pos: {
         x: 0,
@@ -107,6 +108,7 @@ export class OccupancyGridClient extends CanvasObject {
     });
 
     this.currentGoal = null;
+    this.IsCancelGoal = false;
 
     // this.globalPlan = new ROSLIB.Topic({
     //   ros: ros,
@@ -126,7 +128,6 @@ export class OccupancyGridClient extends CanvasObject {
     // this.IsNewLocalPlan = false;
     // this.localPoints = [];
 
-
     ///
 
     this.navPlan = new ROSLIB.Topic({
@@ -138,14 +139,28 @@ export class OccupancyGridClient extends CanvasObject {
     this.IsNewNavPlan = false;
     this.navPoints = [];
 
+    this.footPrint = new ROSLIB.Topic({
+      ros: ros,
+      name: "move_base/global_costmap/footprint",
+      messageType: "geometry_msgs/PolygonStamped",
+    });
+    this.footPrintPath = [];
+    this.IsNewFootPrint = false;
+    this.footPrintPoints = [];
 
+    this.initialPose = new ROSLIB.Topic({
+      ros: ros,
+      name: "initialpose",
+      messageType: "geometry_msgs/PoseWithCovarianceStamped",
+    });
 
     this.tfClient.subscribe("/base_link", (e) => this.getRobotPosition(e));
     this.rosTopic.subscribe((e) => this.messageCallback(e));
     // this.globalPlan.subscribe((e) => this.globalPlanCallback(e));
-    // this.localPlan.subscribe((e) => this.localPlanCallback(e));
+    //this.localPlan.subscribe((e) => this.localPlanCallback(e));
     this.navPlan.subscribe((e) => this.navPlanCallback(e));
-
+    this.footPrint.subscribe((e) => this.footPrintCallback(e));
+    //this.initialPose.subscribe((e) => this.initialPoseCallback(e));
   }
 
   async saveMap(name) {
@@ -162,6 +177,100 @@ export class OccupancyGridClient extends CanvasObject {
         reject(error);
       }
     });
+  }
+
+  setInitialPos(pos) {
+    console.log(pos);
+    //geometry_msgs/PoseWithCovarianceStamped
+    //header.frame_id
+    //header.seq
+    //header.stamp.nsecs
+    //header.stamp.secs
+    //pose.covariance : Array(36)
+    //pose.covariance[0]-pose.covariance[35]
+    //pose.pose.orientation.x
+    //pose.pose.orientation.y
+    //pose.pose.orientation.z
+    //pose.pose.orientation.w
+    //pose.pose.position.x
+    //pose.pose.position.y
+    //pose.pose.position.z
+
+    var tr = inverse(compose(this.engine.getTransform(), this.getTransform())); // draw in world coordinate
+    var p = applyToPoint(tr, {
+      x: pos.x,
+      y: pos.y,
+    });
+
+    var rosPos = this.getRos(p);
+
+    var ang = 0;
+    // create a goal
+    var qz = Math.sin(-ang / 2.0);
+    var qw = Math.cos(-ang / 2.0);
+    var orientation = new ROSLIB.Quaternion({ x: 0, y: 0, z: qz, w: qw });
+
+    var pose = new ROSLIB.Pose({
+      position: new ROSLIB.Vector3({
+        x: rosPos.x,
+        y: rosPos.y,
+      }),
+      orientation: orientation,
+    });
+
+    var posStamp = new ROSLIB.Message({
+      header: {
+        frame_id: "map",
+        seq: 0,
+        stamp: {
+          secs: 0,
+          nsecs: 0,
+        },
+      },
+      pose: {
+        covariance: [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+        ],
+        pose: pose,
+      },
+    });
+
+    this.initialPose.publish(posStamp);
   }
 
   getGoal() {
@@ -196,6 +305,7 @@ export class OccupancyGridClient extends CanvasObject {
     this.goalLocal.end.y = p2.y;
 
     this.goalLocal.ang = ang;
+    this.goalSetting = true;
   }
 
   // returns the current rotation in radians, ranged [0, 2π]
@@ -210,6 +320,7 @@ export class OccupancyGridClient extends CanvasObject {
   }
 
   sendGoalROS() {
+    this.goalSetting = false;
     // console.log("Local:");
     // console.log(this.goalLocal);
     // console.log("ROS:");
@@ -231,6 +342,8 @@ export class OccupancyGridClient extends CanvasObject {
       orientation: orientation,
     });
 
+    this.cancelGoalROS();
+
     var goal = new ROSLIB.Goal({
       actionClient: this.actionClient,
       goalMessage: {
@@ -242,21 +355,26 @@ export class OccupancyGridClient extends CanvasObject {
         },
       },
     });
-    goal.send();
     goal.on("result", () => {
-      console.log("Goal Completed");
-      this.goalLocal.pos = { x: 0, y: 0 };
+      //console.log("Goal Completed");
+
+      //this.goalLocal.pos = { x: 0, y: 0 };
+      if (!this.IsCancelGoal) this.currentGoal = null;
+
+      this.IsCancelGoal = false;
     });
+    goal.send();
+    //console.log("goal.send()");
 
     this.currentGoal = goal;
-    console.log("goal.send()");
   }
 
   cancelGoalROS() {
     if (this.currentGoal) {
       this.currentGoal.cancel();
       this.currentGoal = null;
-      this.goalLocal.pos = { x: 0, y: 0 };
+      this.IsCancelGoal = true;
+      //this.goalLocal.pos = { x: 0, y: 0 };
     }
   }
 
@@ -285,6 +403,26 @@ export class OccupancyGridClient extends CanvasObject {
     this.IsNewNavPlan = false;
   }
 
+  footPrintCallback(e) {
+    //console.log(e);
+    //header.frame_id
+    //header.seq
+    //header.stamp.nsecs
+    //header.stamp.secs
+    //polygon.points[0].x
+    //polygon.points[0].y
+    //polygon.points[0].z
+    this.IsNewFootPrint = true;
+    this.footPrintPath = Array(e.polygon.points.length);
+    var i = e.polygon.points.length;
+    while (i--) this.footPrintPath[i] = e.polygon.points[i];
+    this.IsNewFootPrint = false;
+  }
+
+  // initialPoseCallback(e){
+  //   console.log(e);
+
+  // }
 
   getRobotPosition(msg) {
     //console.log("getRobotPosition:");
@@ -415,13 +553,15 @@ export class OccupancyGridClient extends CanvasObject {
 
         this.engine.context.fillRect(0 - rw / 2, 0 - rh / 2, rw, rh);
         drawArrow(this.engine.context, 0, 0, 14, 0, 1, 1, 20, 4, "#f36", 2);
+        this.drawCross({ x: 0, y: 0 });
+
         this.engine.context.restore();
 
-        this.drawCross(pos);
+        //;
         //this.circle(pos);
       }
 
-      if (this.goalLocal.pos.x !== 0 || this.goalLocal.pos.y !== 0) {
+      if (this.currentGoal !== null || this.goalSetting) {
         this.drawCross(this.goalLocal.pos, 4, "blue");
 
         //this.drawCross(this.goalLocal.end, 4);
@@ -477,8 +617,6 @@ export class OccupancyGridClient extends CanvasObject {
         this.engine.context.restore();
       }
 
-
-
       if (this.currentGoal !== null && this.navPoints.length > 0) {
         //draw Goalbal Path
         this.engine.context.beginPath();
@@ -487,20 +625,13 @@ export class OccupancyGridClient extends CanvasObject {
 
         var i = this.navPoints.length;
         i--;
-        this.engine.context.moveTo(
-          this.navPoints[i].x,
-          this.navPoints[i].y
-        );
+        this.engine.context.moveTo(this.navPoints[i].x, this.navPoints[i].y);
 
         while (i--) {
-          this.engine.context.lineTo(
-            this.navPoints[i].x,
-            this.navPoints[i].y
-          );
+          this.engine.context.lineTo(this.navPoints[i].x, this.navPoints[i].y);
         }
         this.engine.context.stroke();
       }
-
 
       // if (this.currentGoal !== null && this.globalPoints.length > 0) {
       //   //draw Goalbal Path
@@ -546,7 +677,34 @@ export class OccupancyGridClient extends CanvasObject {
       //   this.engine.context.stroke();
       // }
 
+      if (this.footPrintPoints.length > 0) {
+        //draw Goalbal Path
+        this.engine.context.beginPath();
+        this.engine.context.strokeStyle = "black";
+        this.engine.context.lineWidth = 0.5;
 
+        var i = this.footPrintPoints.length;
+        i--;
+        var last = i;
+        this.engine.context.moveTo(
+          this.footPrintPoints[i].x,
+          this.footPrintPoints[i].y
+        );
+
+        while (i--) {
+          this.engine.context.lineTo(
+            this.footPrintPoints[i].x,
+            this.footPrintPoints[i].y
+          );
+        }
+
+        this.engine.context.lineTo(
+          this.footPrintPoints[last].x,
+          this.footPrintPoints[last].y
+        );
+
+        this.engine.context.stroke();
+      }
 
       //this.circle({ x: 0, y: 0 }, 4, "red");
       //this.drawCross({x:0,y:0},6,'red')
@@ -684,7 +842,6 @@ export class OccupancyGridClient extends CanvasObject {
       var i = this.navPlanPath.length;
       this.navPoints = Array(i);
       while (i--) {
-
         this.navPoints[i] = this.getPixel({
           x: this.navPlanPath[i].pose.position.x,
           y: this.navPlanPath[i].pose.position.y,
@@ -693,6 +850,18 @@ export class OccupancyGridClient extends CanvasObject {
       }
     }
 
+    //Process Foot Print
+    if (this.IsNewFootPrint === false) {
+      var i = this.footPrintPath.length;
+      this.footPrintPoints = Array(i);
+      while (i--) {
+        this.footPrintPoints[i] = this.getPixel({
+          x: this.footPrintPath[i].x,
+          y: this.footPrintPath[i].y,
+        });
+        //console.log(this.navPoints[i])
+      }
+    }
   }
 
   rosQuaternionToGlobalTheta(orientation) {
@@ -743,9 +912,10 @@ export class OccupancyGridClient extends CanvasObject {
     if (this.rosTopic) this.rosTopic.unsubscribe();
     if (this.tfClient) this.tfClient.unsubscribe("/base_link");
     // if (this.globalPlan) this.globalPlan.unsubscribe();
-    // if (this.localPlan) this.localPlan.unsubscribe();
+    //if (this.localPlan) this.localPlan.unsubscribe();
     if (this.navPlan) this.localPlan.unsubscribe();
-
+    if (this.footPrint) this.footPrint.unsubscribe();
+    //if(this.initialPose) this.initialPose.unsubscribe();
   }
 }
 

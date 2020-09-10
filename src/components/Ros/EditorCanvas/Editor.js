@@ -13,21 +13,10 @@ import {
   updateConnected,
   rosConnect,
   Ros,
-} from "../../features/Ros/rosSlice";
-// import {
-//   getLockRobotCenterView,
-//   getAutoRotateView,
-// } from "../../features/joystickSlice";
+} from "../../../features/Ros/rosSlice";
+import { getAuthUser } from "../../../features/Auth/AuthSlice";
 
-// import * as ROSLIB from "roslib";
-// import { Link } from "react-router-dom";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { NavCanvas } from "./NavCanvas";
-import { OccupancyGridClient } from "./NavCanvas/Objects/OccupancyGridClient";
-// import { Square } from "./NavCanvas/Objects/Square";
-
-// import { number, func } from "prop-types";
-
+import { EditorCanvas } from "./index";
 import {
   Button,
   Modal,
@@ -40,13 +29,21 @@ import {
   ToggleButton,
 } from "react-bootstrap";
 import { useTranslation, Trans } from "react-i18next";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-export const Viewer2D = forwardRef((props, ref) => {
+import { ImageMapClient } from "./Objects/ImageMapClient";
+
+export const Editor = forwardRef((props, ref) => {
+  const dispatch = useDispatch();
+  //const rosConnected = useSelector((state) => getIsConnected(state));
+  const user = useSelector((state) => getAuthUser(state));
+
+
+
   const [viewHeight, setViewHeight] = useState(400);
   const [viewWidth, setViewWidth] = useState(400);
   const [showToolbar, setShowToolbar] = useState(true);
-  const [activeTool, setActiveTool] = useState('NONE');
-
+  const [activeTool, setActiveTool] = useState("NONE");
 
   const [saveModelShow, setSaveModelShow] = useState(false);
   const [saveValidated, setSaveValidated] = useState(false);
@@ -54,34 +51,28 @@ export const Viewer2D = forwardRef((props, ref) => {
   const [openModelShow, setOpenModelShow] = useState(false);
   const { t } = useTranslation();
 
-  const dispatch = useDispatch();
-
   const viewRef = useRef(null);
-  const viewToolbarRef = useRef(null);
   const editorRef = useRef(null);
   const canvasRef = useRef(null);
-  const engineRef = useRef(null);
-  const gridClientRef = useRef(null);
 
   const WindowSize = useCallback(() => {
     if (viewRef.current !== null) {
- 
-      setViewHeight(viewRef.current.offsetHeight - 30 - (showToolbar?38 : 0));
-
-      if (editorRef.current !== null) {
-        setViewWidth(editorRef.current.offsetWidth - 20);
-      }
+      setViewHeight(viewRef.current.offsetHeight - 30 - (showToolbar ? 38 : 0));
+      setViewWidth(viewRef.current.offsetWidth - 30);
     }
-  }, [viewRef, editorRef, canvasRef, setViewWidth, setViewHeight,showToolbar]);
-
+  }, [viewRef, editorRef, canvasRef, setViewWidth, setViewHeight, showToolbar]);
   useEffect(() => {
-    // Create the main viewRef.current.
-    console.log("Create default viewRef.current.");
+
+    if (!Ros.isConnected) dispatch(rosConnect(user));
+
 
     if (canvasRef.current !== null) {
       if (canvasRef.current.getContext) {
-        if (engineRef.current === null) {
-          engineRef.current = new NavCanvas("canvas");
+        if (editorRef.current === null) {
+          editorRef.current = new EditorCanvas("canvas");
+          editorRef.current.add(
+            new ImageMapClient(editorRef.current, 0, 0, { ros: Ros })
+          );
         }
       } else {
         console.error("Cant draw canvas");
@@ -90,77 +81,44 @@ export const Viewer2D = forwardRef((props, ref) => {
 
     window.addEventListener("resize", WindowSize);
     WindowSize();
-    //gameLoop(0);
 
-    if (engineRef.current != null) {
-      gridClientRef.current = new OccupancyGridClient(
-        engineRef.current,
-        0,
-        40,
-        {
-          ros: Ros,
-          continuous: true,
-          width: 0.64,
-          height: 0.64,
-        }
-      );
-
-      engineRef.current.canvasObjects = [
-        // new Square(engineRef.current, 250, 150, 50, 50 , 1 , 1),
-        // new Square(engineRef.current, 350, 75, 50, 50, -1 ,1),
-        // new Square(engineRef.current, 300, 300, 50, 50, 1 , -1),
-        // new SquareBitmap(engineRef.current, 10, 10, 80, 50, 200 , 200),
-        gridClientRef.current,
-        //new Square(engineRef.current, 450, 450, 50, 50, 1, 1),
-      ];
-      engineRef.current.init();
+    if (editorRef.current != null) {
+      editorRef.current.init();
     }
 
     return () => {
       window.removeEventListener("resize", WindowSize);
-      engineRef.current.exit();
+      if (editorRef.current != null) editorRef.current.exit();
     };
-  }, [dispatch, WindowSize, viewRef]);
+  }, [WindowSize, viewRef, Ros,dispatch,rosConnect, user ]);
 
   useImperativeHandle(ref, () => ({
     getAlert() {
       alert("getAlert from Viewer");
     },
-    setCenterView(v) {
-      if (engineRef.current !== null) {
-        engineRef.current.autoRobotCenter = v;
-      }
-    },
-    setAutoRotate(v) {
-      if (engineRef.current !== null) {
-        engineRef.current.autoRotation = v;
-      }
-    },
-    setToolbar(e){
+    setToolbar(e) {
       setShowToolbar(e);
       WindowSize();
     },
-
   }));
 
   function rotateLeft() {
-    if (engineRef.current !== null) {
-      engineRef.current.rotateViewLeft();
+    if (editorRef.current !== null) {
+      editorRef.current.rotateViewLeft();
     }
   }
 
   function rotateRight() {
-    if (engineRef.current !== null) {
-      engineRef.current.rotateViewRight();
+    if (editorRef.current !== null) {
+      editorRef.current.rotateViewRight();
     }
   }
 
   function serachLocationt() {
-    if (engineRef.current !== null) {
-      engineRef.current.viewToRobot();
+    if (editorRef.current !== null) {
+      // editorRef.current.viewToRobot();
     }
   }
-
   const handleSaveClose = () => {
     setSaveModelShow(false);
   };
@@ -178,11 +136,10 @@ export const Viewer2D = forwardRef((props, ref) => {
     }
     console.log(textInput.current.value);
     setSaveModelShow(false);
-    gridClientRef.current.saveMap(textInput.current.value).then((result) => {
-      console.log(result);
-    });
+    // gridClientRef.current.saveMap(textInput.current.value).then((result) => {
+    //   console.log(result);
+    // });
   };
-
   const handleOpenShow = () => {
     setOpenModelShow(true);
   };
@@ -191,28 +148,19 @@ export const Viewer2D = forwardRef((props, ref) => {
     setOpenModelShow(false);
   };
 
- 
-  const setEngineActiveTool = (v) =>{
+  const setEditorActiveTool = (v) => {
     //console.log(v)
-    if (engineRef.current !== null) {
-      engineRef.current.setActiveTool(v);
-      setActiveTool(engineRef.current.activeTool);
-    }
-  }
-
-  const setCancelGoal = ()=>{
-    if (engineRef.current !== null) {
-      engineRef.current.setCancelGoal();
-      engineRef.current.setActiveTool('CANCELGOAL');
-      setActiveTool(engineRef.current.activeTool);
+    if (editorRef.current !== null) {
+      editorRef.current.setActiveTool(v);
+      setActiveTool(editorRef.current.activeTool);
     }
   };
 
   return (
     <div ref={viewRef} className="container-fluid">
-      <div ref={editorRef} className="col-12">
+      <div className="col-12">
         <div className="editor">
-          <div ref={viewToolbarRef} style={{display:(showToolbar? 'block' : 'none')}}>
+          <div style={{ display: showToolbar ? "block" : "none" }}>
             <button
               type="button"
               className="btn btn-primary float-left mr-2"
@@ -242,14 +190,36 @@ export const Viewer2D = forwardRef((props, ref) => {
               <button
                 type="button"
                 className="btn btn-default btn-flat"
-                onClick={serachLocationt}
+                onClick={() => setEditorActiveTool("CUT")}
               >
-                <FontAwesomeIcon icon={["fas", "crosshairs"]} />
+                <FontAwesomeIcon icon={["fas", "cut"]} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-default btn-flat"
+                onClick={() => setEditorActiveTool("COPY")}
+              >
+                <FontAwesomeIcon icon={["fas", "copy"]} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-default btn-flat"
+                onClick={() => setEditorActiveTool("PASTE")}
+              >
+                <FontAwesomeIcon icon={["fas", "paste"]} />
               </button>
             </div>
 
-            <div className="btn-group btn-group-toggle" data-toggle="buttons">
-            <label className={"btn bg-olive" + (activeTool==='NONE'? " active" : '' )} onClick={()=>setEngineActiveTool('NONE')}>
+            <div
+              className="btn-group btn-group-toggle mr-2"
+              data-toggle="buttons"
+            >
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "POINTER" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("POINTER")}
+              >
                 <input
                   type="radio"
                   name="options"
@@ -257,10 +227,14 @@ export const Viewer2D = forwardRef((props, ref) => {
                   autoComplete="off"
                   defaultChecked
                 />{" "}
-                <FontAwesomeIcon icon={["fas", "ban"]} />
+                <FontAwesomeIcon icon={["fas", "mouse-pointer"]} />
               </label>
-
-              <label className={"btn bg-olive" + (activeTool==='ZOOMPAN'? " active" : '' )} onClick={()=>setEngineActiveTool('ZOOMPAN')}>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "ZOOMPAN" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("ZOOMPAN")}
+              >
                 <input
                   type="radio"
                   name="options2"
@@ -270,33 +244,145 @@ export const Viewer2D = forwardRef((props, ref) => {
                 />{" "}
                 <FontAwesomeIcon icon={["fas", "search-location"]} />
               </label>
-              <label className={"btn bg-olive" + (activeTool==='INITPOS'? " active" : '' )} onClick={()=>setEngineActiveTool('INITPOS')}>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "LINE" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("LINE")}
+              >
                 <input
                   type="radio"
                   name="options3"
                   id="option3"
                   autoComplete="off"
+                  defaultChecked
                 />{" "}
-                <FontAwesomeIcon icon={["fas", "crosshairs"]} />
+                <FontAwesomeIcon icon={["fas", "pencil-alt"]} />
               </label>
-
-              <label className={"btn bg-olive" + (activeTool==='ROUTE'? " active" : '' )} onClick={()=>setEngineActiveTool('ROUTE')}>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "POLYLINE" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("POLYLINE")}
+              >
                 <input
                   type="radio"
                   name="options4"
                   id="option4"
                   autoComplete="off"
+                  defaultChecked
                 />{" "}
-                <FontAwesomeIcon icon={["fas", "route"]} />
+                <FontAwesomeIcon icon={["fas", "bezier-curve"]} />
               </label>
-              <label className={"btn bg-olive" + (activeTool==='CANCELGOAL'? " active" : '' )} onClick={setCancelGoal}>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "RECT" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("RECT")}
+              >
                 <input
                   type="radio"
-                  name="option5s"
+                  name="options5"
                   id="option5"
                   autoComplete="off"
+                  defaultChecked
                 />{" "}
-                <FontAwesomeIcon icon={["fas", "times-circle"]} />
+                <FontAwesomeIcon icon={["fas", "vector-square"]} />
+              </label>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "CIRCLE" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("CIRCLE")}
+              >
+                <input
+                  type="radio"
+                  name="options5"
+                  id="option5"
+                  autoComplete="off"
+                  defaultChecked
+                />{" "}
+                <FontAwesomeIcon icon={["fas", "bullseye"]} />
+              </label>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "TEXT" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("TEXT")}
+              >
+                <input
+                  type="radio"
+                  name="options5"
+                  id="option5"
+                  autoComplete="off"
+                  defaultChecked
+                />{" "}
+                <FontAwesomeIcon icon={["fas", "text-height"]} />
+              </label>
+            </div>
+            <div
+              className="btn-group btn-group-toggle mr-2"
+              data-toggle="buttons"
+            >
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "DOCKING" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("DOCKING")}
+              >
+                <input
+                  type="radio"
+                  name="options5"
+                  id="option5"
+                  autoComplete="off"
+                  defaultChecked
+                />{" "}
+                <FontAwesomeIcon icon={["fas", "charging-station"]} />
+              </label>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "ROOM" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("ROOM")}
+              >
+                <input
+                  type="radio"
+                  name="options5"
+                  id="option5"
+                  autoComplete="off"
+                  defaultChecked
+                />{" "}
+                <FontAwesomeIcon icon={["fas", "border-style"]} />
+              </label>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "ROUTE" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("ROUTE")}
+              >
+                <input
+                  type="radio"
+                  name="options5"
+                  id="option5"
+                  autoComplete="off"
+                  defaultChecked
+                />{" "}
+                <FontAwesomeIcon icon={["fas", "road"]} />
+              </label>
+              <label
+                className={
+                  "btn bg-olive" + (activeTool === "NOGO" ? " active" : "")
+                }
+                onClick={() => setEditorActiveTool("NOGO")}
+              >
+                <input
+                  type="radio"
+                  name="options5"
+                  id="option5"
+                  autoComplete="off"
+                  defaultChecked
+                />{" "}
+                <FontAwesomeIcon icon={["fas", "store-alt-slash"]} />
               </label>
             </div>
 
