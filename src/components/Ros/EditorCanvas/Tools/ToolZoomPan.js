@@ -5,7 +5,7 @@ export class ToolZoomPan extends ToolObject {
   constructor(engine, options) {
     super(engine, options);
     options = options || {};
-    this.name = options.ros || "ZOOMPAN";
+    this.name = options.name || "ZOOMPAN";
     this.icon = ["fas", "search-location"];
 
     this.dragInfo = {
@@ -53,11 +53,13 @@ export class ToolZoomPan extends ToolObject {
       : evt.detail
       ? -evt.detail
       : 0;
+     
+
     if (delta) {
       if (delta > 0) {
-        this.engine.scaleUp();
+        this.engine.scaleUp({ x: evt.clientX, y: evt.clientY });
       } else {
-        this.engine.scaleDown();
+        this.engine.scaleDown({ x: evt.clientX, y: evt.clientY });
       }
       // console.log("scale:" + this.engine.scale);
       if (this.engine.autoRobotCenter) this.engine.viewToRobot();

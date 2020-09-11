@@ -24,21 +24,19 @@ import {
   InputGroup,
   Row,
   Col,
-  ButtonToolbar,
-  ButtonGroup,
+  DropdownButton,
+  Dropdown,
   ToggleButton,
 } from "react-bootstrap";
 import { useTranslation, Trans } from "react-i18next";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import { ImageMapClient } from "./Objects/ImageMapClient";
+// import { ImageMapClient } from "./Objects/ImageMapClient";
 
 export const Editor = forwardRef((props, ref) => {
   const dispatch = useDispatch();
   //const rosConnected = useSelector((state) => getIsConnected(state));
   const user = useSelector((state) => getAuthUser(state));
-
-
 
   const [viewHeight, setViewHeight] = useState(400);
   const [viewWidth, setViewWidth] = useState(400);
@@ -49,30 +47,42 @@ export const Editor = forwardRef((props, ref) => {
   const [saveValidated, setSaveValidated] = useState(false);
   const textInput = useRef(null);
   const [openModelShow, setOpenModelShow] = useState(false);
+
+  const [zoomShow, setZoomShow] = useState(false);
+  const [drawShow, setDrawShow] = useState(false);
+
+  const [zoomActive, setZoomActive] = useState('');
+  const [drawActive, setDrawActive] = useState('');
+
+
   const { t } = useTranslation();
 
   const viewRef = useRef(null);
   const editorRef = useRef(null);
   const canvasRef = useRef(null);
 
+  const getWidth = () => {
+    return viewRef.current.offsetWidth - 30;
+  };
+  const getHeight = () => {
+    return viewRef.current.offsetHeight - 30 - (showToolbar ? 38 : 0);
+  };
+
   const WindowSize = useCallback(() => {
     if (viewRef.current !== null) {
-      setViewHeight(viewRef.current.offsetHeight - 30 - (showToolbar ? 38 : 0));
-      setViewWidth(viewRef.current.offsetWidth - 30);
+      setViewHeight(getHeight());
+      setViewWidth(getWidth());
     }
-  }, [viewRef, editorRef, canvasRef, setViewWidth, setViewHeight, showToolbar]);
+  }, [viewRef, getWidth, getHeight, showToolbar]);
+
   useEffect(() => {
-
     if (!Ros.isConnected) dispatch(rosConnect(user));
-
 
     if (canvasRef.current !== null) {
       if (canvasRef.current.getContext) {
         if (editorRef.current === null) {
-          editorRef.current = new EditorCanvas("canvas");
-          editorRef.current.add(
-            new ImageMapClient(editorRef.current, 0, 0, { ros: Ros })
-          );
+          editorRef.current = new EditorCanvas("canvas", { ros: Ros });
+          editorRef.current.init();
         }
       } else {
         console.error("Cant draw canvas");
@@ -82,15 +92,11 @@ export const Editor = forwardRef((props, ref) => {
     window.addEventListener("resize", WindowSize);
     WindowSize();
 
-    if (editorRef.current != null) {
-      editorRef.current.init();
-    }
-
     return () => {
       window.removeEventListener("resize", WindowSize);
       if (editorRef.current != null) editorRef.current.exit();
     };
-  }, [WindowSize, viewRef, Ros,dispatch,rosConnect, user ]);
+  }, [editorRef, WindowSize, viewRef, Ros, dispatch, rosConnect, user]);
 
   useImperativeHandle(ref, () => ({
     getAlert() {
@@ -153,8 +159,22 @@ export const Editor = forwardRef((props, ref) => {
     if (editorRef.current !== null) {
       editorRef.current.setActiveTool(v);
       setActiveTool(editorRef.current.activeTool);
+      setDrawShow(false);setZoomShow(false);setZoomActive('');setDrawActive('');
     }
   };
+
+  const setEditorViewAll = ()=>{
+    if (editorRef.current !== null) {
+      editorRef.current.viewAll();
+    }
+  }
+
+  const setEditorViewOrg = () => {
+    if (editorRef.current !== null) {
+      editorRef.current.viewToMap();
+    }
+
+  }
 
   return (
     <div ref={viewRef} className="container-fluid">
@@ -218,7 +238,7 @@ export const Editor = forwardRef((props, ref) => {
                 className={
                   "btn bg-olive" + (activeTool === "POINTER" ? " active" : "")
                 }
-                onClick={() => setEditorActiveTool("POINTER")}
+                onClick={() => {setEditorActiveTool("POINTER");}}
               >
                 <input
                   type="radio"
@@ -229,96 +249,35 @@ export const Editor = forwardRef((props, ref) => {
                 />{" "}
                 <FontAwesomeIcon icon={["fas", "mouse-pointer"]} />
               </label>
-              <label
-                className={
-                  "btn bg-olive" + (activeTool === "ZOOMPAN" ? " active" : "")
-                }
-                onClick={() => setEditorActiveTool("ZOOMPAN")}
-              >
-                <input
-                  type="radio"
-                  name="options2"
-                  id="option2"
-                  autoComplete="off"
-                  defaultChecked
-                />{" "}
+
+              <div className={"btn-group"+ (zoomShow?" show":"" )  } onClick={()=>{setZoomShow(!zoomShow);setDrawShow(false);setActiveTool("TZOOM") }}>
+                <button type="button" className={"btn bg-olive dropdown-toggle dropdown-icon" +  (activeTool === "TZOOM" ? " active" : "")} data-toggle="dropdown">
                 <FontAwesomeIcon icon={["fas", "search-location"]} />
-              </label>
-              <label
-                className={
-                  "btn bg-olive" + (activeTool === "LINE" ? " active" : "")
-                }
-                onClick={() => setEditorActiveTool("LINE")}
-              >
-                <input
-                  type="radio"
-                  name="options3"
-                  id="option3"
-                  autoComplete="off"
-                  defaultChecked
-                />{" "}
-                <FontAwesomeIcon icon={["fas", "pencil-alt"]} />
-              </label>
-              <label
-                className={
-                  "btn bg-olive" + (activeTool === "POLYLINE" ? " active" : "")
-                }
-                onClick={() => setEditorActiveTool("POLYLINE")}
-              >
-                <input
-                  type="radio"
-                  name="options4"
-                  id="option4"
-                  autoComplete="off"
-                  defaultChecked
-                />{" "}
-                <FontAwesomeIcon icon={["fas", "bezier-curve"]} />
-              </label>
-              <label
-                className={
-                  "btn bg-olive" + (activeTool === "RECT" ? " active" : "")
-                }
-                onClick={() => setEditorActiveTool("RECT")}
-              >
-                <input
-                  type="radio"
-                  name="options5"
-                  id="option5"
-                  autoComplete="off"
-                  defaultChecked
-                />{" "}
-                <FontAwesomeIcon icon={["fas", "vector-square"]} />
-              </label>
-              <label
-                className={
-                  "btn bg-olive" + (activeTool === "CIRCLE" ? " active" : "")
-                }
-                onClick={() => setEditorActiveTool("CIRCLE")}
-              >
-                <input
-                  type="radio"
-                  name="options5"
-                  id="option5"
-                  autoComplete="off"
-                  defaultChecked
-                />{" "}
-                <FontAwesomeIcon icon={["fas", "bullseye"]} />
-              </label>
-              <label
-                className={
-                  "btn bg-olive" + (activeTool === "TEXT" ? " active" : "")
-                }
-                onClick={() => setEditorActiveTool("TEXT")}
-              >
-                <input
-                  type="radio"
-                  name="options5"
-                  id="option5"
-                  autoComplete="off"
-                  defaultChecked
-                />{" "}
-                <FontAwesomeIcon icon={["fas", "text-height"]} />
-              </label>
+                </button>
+                <div className={"dropdown-menu" + (zoomShow?" show":"" )}>
+                  <a className={"dropdown-item" + (zoomActive==="ZOOMPAN"?" active":"")} href="#" onClick={() => {setEditorActiveTool("ZOOMPAN");setZoomActive("ZOOMPAN")}}><FontAwesomeIcon icon={["fas", "search-location"]} /> <span className="mr-2"/> Zoom & Pan</a>
+                  <a className={"dropdown-item" + (zoomActive==="ZOOMALL"?" active":"")} href="#" onClick={()=>{ setZoomActive("ZOOMALL");setEditorViewAll()}}><FontAwesomeIcon icon={["fas", "expand"]} /> <span className="mr-2"/> View All</a>
+                  <a className={"dropdown-item" + (zoomActive==="ZOOMORG"?" active":"")} href="#" onClick={()=>{ setZoomActive("ZOOMORG");setEditorViewOrg()}}><FontAwesomeIcon icon={["fas", "crosshairs"]} /> <span className="mr-2"/> View Map Origin</a>
+                </div>
+              </div>
+
+              <div className={"btn-group" + (drawShow?" show":"")} onClick={()=>{setDrawShow(!drawShow);setZoomShow(false);setActiveTool("TDRAW")}}>
+                <button type="button" className={"btn bg-olive dropdown-toggle dropdown-icon" +  (activeTool === "TDRAW" ? " active" : "")} data-toggle="dropdown">
+                <FontAwesomeIcon icon={["fas", "shapes"]} />
+                </button>
+                <div className={"dropdown-menu" + (drawShow?" show":"")}>
+                  <a className={"dropdown-item" + (drawActive==="LINE"?" active":"")} href="#" onClick={()=>{setEditorActiveTool("LINE");setDrawActive("LINE");}} ><FontAwesomeIcon icon={["fas", "pencil-alt"]} /> <span className="mr-2"/> Line </a>
+                  <a className={"dropdown-item" + (drawActive==="POLYLINE"?" active":"")} href="#" onClick={()=>{setEditorActiveTool("POLYLINE");setDrawActive("POLYLINE");}}><FontAwesomeIcon icon={["fas", "bezier-curve"]} /> <span className="mr-2"/> Poly Line</a>
+                  <a className={"dropdown-item" + (drawActive==="RECT"?" active":"")} href="#" onClick={()=>{setEditorActiveTool("RECT");setDrawActive("RECT");}}><FontAwesomeIcon icon={["fas", "vector-square"]} /> <span className="mr-2"/> Rectangle</a>
+                  <a className={"dropdown-item" + (drawActive==="CIRCLE"?" active":"")} href="#" onClick={()=>{setEditorActiveTool("CIRCLE");setDrawActive("CIRCLE");}}><FontAwesomeIcon icon={["fas", "circle"]} /> <span className="mr-2"/> Elips</a>
+                  <a className={"dropdown-item" + (drawActive==="TEXT"?" active":"")} href="#" onClick={()=>{setEditorActiveTool("TEXT");setDrawActive("TEXT");}}><FontAwesomeIcon icon={["fas", "text-height"]} /> <span className="mr-2"/> Text</a>
+                  <a className={"dropdown-item" + (drawActive==="IMAGE"?" active":"")} href="#" onClick={()=>{setEditorActiveTool("IMAGE");setDrawActive("IMAGE");}}><FontAwesomeIcon icon={["fas", "image"]} /> <span className="mr-2"/> Image</a>
+                
+                </div>
+              </div>
+
+
+
             </div>
             <div
               className="btn-group btn-group-toggle mr-2"

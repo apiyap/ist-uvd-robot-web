@@ -1,4 +1,4 @@
-import { ToolObject } from "../ToolObject";
+import { ToolDrawObject } from "./ToolDrawObject";
 import { library, icon } from "@fortawesome/fontawesome-svg-core";
 import { faRoad } from "@fortawesome/free-solid-svg-icons";
 
@@ -6,11 +6,11 @@ library.add(faRoad);
 
 const ToolCursor = icon({ prefix: "fas", iconName: "road" });
 
-export class ToolRoute extends ToolObject {
+export class ToolRoute extends ToolDrawObject {
   constructor(engine, options) {
     super(engine, options);
     options = options || {};
-    this.name = options.ros || "ROUTE";
+    this.name = options.name || "ROUTE";
     this.icon = ["fas", "road"];
     this.visible = true;
     this.enabled = true;

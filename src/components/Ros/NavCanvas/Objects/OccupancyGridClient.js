@@ -913,7 +913,7 @@ export class OccupancyGridClient extends CanvasObject {
     if (this.tfClient) this.tfClient.unsubscribe("/base_link");
     // if (this.globalPlan) this.globalPlan.unsubscribe();
     //if (this.localPlan) this.localPlan.unsubscribe();
-    if (this.navPlan) this.localPlan.unsubscribe();
+    if (this.navPlan) this.navPlan.unsubscribe();
     if (this.footPrint) this.footPrint.unsubscribe();
     //if(this.initialPose) this.initialPose.unsubscribe();
   }

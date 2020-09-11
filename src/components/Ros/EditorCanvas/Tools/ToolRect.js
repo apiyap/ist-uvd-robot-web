@@ -1,10 +1,10 @@
-import { ToolObject } from "../ToolObject";
+import { ToolDrawObject } from "./ToolDrawObject";
 
-export class ToolRect extends ToolObject {
+export class ToolRect extends ToolDrawObject {
   constructor(engine, options) {
     super(engine, options);
     options = options || {};
-    this.name = options.ros || "RECT";
+    this.name = options.name || "RECT";
     this.icon = ["fas", "vector-square"];
     this.visible = true;
     this.enabled = true;

@@ -1,4 +1,4 @@
-import { ToolObject } from "../ToolObject";
+import { ToolDrawObject } from "./ToolDrawObject";
 import { library, icon } from "@fortawesome/fontawesome-svg-core";
 import { faCrop } from "@fortawesome/free-solid-svg-icons";
 
@@ -6,11 +6,11 @@ library.add(faCrop);
 
 const ToolCursor = icon({ prefix: "fas", iconName: "crop" });
 
-export class ToolNoGo extends ToolObject {
+export class ToolNoGo extends ToolDrawObject {
   constructor(engine, options) {
     super(engine, options);
     options = options || {};
-    this.name = options.ros || "ROOM";
+    this.name = options.name || "ROOM";
     this.icon = ["fas", "crop"];
     this.visible = true;
     this.enabled = true;

@@ -9,21 +9,29 @@ import {
   applyToPoint,
 } from "transformation-matrix";
 
-export class ToolPointer extends ToolObject {
+
+export class ToolDrawObject extends ToolObject {
   constructor(engine, options) {
     super(engine, options);
+
     options = options || {};
-    this.name = options.name || "POINTER";
-    this.icon = ["fas", "mouse-pointer"];
-    this.visible = true;
-    this.enabled = true;
+    this.name = options.name || "DRAWOBJECT";
     this.cursor = "default";
+    this.index = 0;
+
+
   }
 
-  draw(tr) {
+
+
+
+
+
+
+  draw(tr){
     if (this.dragInfo.isDragging) {
-      // draw in screen  coordinate
-      var p =  {
+       // draw in screen coordinate
+      var p = {
         x: this.dragInfo.startX,
         y: this.dragInfo.startY,
       };
@@ -32,11 +40,9 @@ export class ToolPointer extends ToolObject {
         y: this.dragInfo.moveY,
       };
 
-      this.engine.context.lineWidth = 1;
-      this.engine.context.beginPath();
-      this.engine.context.strokeStyle = "lime";
-      this.engine.context.rect(p.x, p.y, p2.x - p.x, p2.y - p.y);
-      this.engine.context.stroke();
+      drawCross(this.engine.context, p, 4, "blue", 1);
+      drawCross(this.engine.context, p2, 4, "red", 1);
+
     }
   }
 }

@@ -1,10 +1,10 @@
-import { ToolObject } from "../ToolObject";
+import { ToolDrawObject } from "./ToolDrawObject";
 
-export class ToolCircle extends ToolObject {
+export class ToolCircle extends ToolDrawObject {
   constructor(engine, options) {
     super(engine, options);
     options = options || {};
-    this.name = options.ros || "CIRCLE";
+    this.name = options.name || "CIRCLE";
     this.icon = ["fas", "crosshairs"];
     this.visible = true;
     this.enabled = true;

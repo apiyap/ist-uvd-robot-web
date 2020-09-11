@@ -1,4 +1,4 @@
-import { ToolObject } from "../ToolObject";
+import { ToolDrawObject } from "./ToolDrawObject";
 import { library, icon } from "@fortawesome/fontawesome-svg-core";
 import { faChargingStation } from "@fortawesome/free-solid-svg-icons";
 
@@ -6,11 +6,11 @@ library.add(faChargingStation);
 
 const ToolCursor = icon({ prefix: "fas", iconName: "charging-station" });
 
-export class ToolDocking extends ToolObject {
+export class ToolDocking extends ToolDrawObject {
   constructor(engine, options) {
     super(engine, options);
     options = options || {};
-    this.name = options.ros || "DOCKING";
+    this.name = options.name || "DOCKING";
     this.icon = ["fas", "charging-station"];
     this.visible = true;
     this.enabled = true;

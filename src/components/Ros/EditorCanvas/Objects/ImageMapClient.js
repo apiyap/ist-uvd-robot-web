@@ -17,14 +17,18 @@ export class ImageMapClient extends CanvasObject {
     options = options || {};
     var ros = options.ros;
     var topic = options.topic || "/map";
+    this.imageCallback = options.callBack;
 
     this.width = 40;
     this.height = 40;
+    this.res = 0;
+    this.org = { x: 0, y: 0 };
 
     this.imgData = null;
     this.message = null;
     this.isRecieved = false;
     this.imageBitmap = null;
+     
 
     // subscribe to the topic
     this.rosTopic = new ROSLIB.Topic({
@@ -34,37 +38,36 @@ export class ImageMapClient extends CanvasObject {
       compression: "png",
     });
 
-    this.rosTopic.subscribe((e) => this.messageCallback(e));
+    if (ros.isConnected) {
+      this.rosTopic.subscribe((e) => this.messageCallback(e));
+    } else {
+      ros.on("connection", () => {
+        this.rosTopic.subscribe((e) => this.messageCallback(e));
+      });
+    }
   }
 
   messageCallback(e) {
-    // we only need this once
-    this.rosTopic.unsubscribe();
     this.message = e; //save message
-    //console.log(e);
     this.isRecieved = true;
-
-  }
-
-  // getRectangle() {
-  //   return {
-  //     x: this.pos.x,
-  //     y: this.pos.y,
-  //     width: this.width,
-  //     height: this.height,
-  //   };
-  // }
-  init() {}
-  update(t) {
-    if (this.message != null && this.isRecieved) {
+    //console.log(e);
+    if (this.message !== null && this.isRecieved) {
       // set the size
       this.width = this.message.info.width;
       this.height = this.message.info.height;
+      this.org = this.message.info.origin.position;
+      this.res = this.message.info.resolution;
+      //Update points[]
+      this.points[0] = { x: 0, y: 0 };
+      this.points[1] = { x: this.width, y: 0 };
+      this.points[2] = { x: this.width, y: this.height };
+      this.points[3] = { x: 0, y: this.height };
 
       this.imgData = this.engine.context.createImageData(
         this.width,
         this.height
       );
+       
 
       for (var row = 0; row < this.height; row++) {
         for (var col = 0; col < this.width; col++) {
@@ -96,14 +99,32 @@ export class ImageMapClient extends CanvasObject {
       this.isRecieved = false; //process completed
 
       createImageBitmap(this.imgData, 0, 0, this.width, this.height).then(
-        (imageBitmap) => {this.imageBitmap = imageBitmap;
-        //console.log(this.imageBitmap );
+        (imageBitmap) => {
+          this.imageBitmap = imageBitmap;
+          //console.log(this.imageBitmap );
         }
       );
+      
+      if(typeof(this.imageCallback)==='function')
+      {
+        this.imageCallback();
+      }
+      // we only need this once
+      this.rosTopic.unsubscribe();
     }
   }
 
-  
+  // getRectangle() {
+  //   return {
+  //     x: this.pos.x,
+  //     y: this.pos.y,
+  //     width: this.width,
+  //     height: this.height,
+  //   };
+  // }
+  init() {}
+  update(t) {}
+
   draw(tr) {
     if (this.imageBitmap !== null) {
       this.engine.context.save();
@@ -117,54 +138,46 @@ export class ImageMapClient extends CanvasObject {
     }
   }
   getMapOrigin() {
-    return this.getPixel({
+    var ctMap = this.getPixel({
       x: 0,
       y: 0,
     });
+    // console.log(ctMap);
+    return ctMap;
   }
-    // ros to world
-    getPixel(pos) {
-        var x = 0;
-        var y = 0;
-        if (this.message) {
-          x =
-            (pos.x - this.message.info.origin.position.x) /
-            this.message.info.resolution;
-          y =
-            this.height -
-            (pos.y - this.message.info.origin.position.y) /
-              this.message.info.resolution;
-        }
-    
-        return {
-          x: x,
-          y: y,
-        };
-      }
-    
-      //world to ROS
-      getRos(pos) {
-        var rosX =
-          pos.x * this.message.info.resolution +
-          this.message.info.origin.position.x;
-        var rosY =
-          -(pos.y - this.height) * this.message.info.resolution +
-          this.message.info.origin.position.y;
-        return {
-          x: rosX,
-          y: rosY,
-        };
-      }
+  // ros to world
+  getPixel(pos) {
+    var x = 0;
+    var y = 0;
+
+    x = (pos.x - this.org.x) / this.res;
+    y = this.height - (pos.y - this.org.y) / this.res;
+
+    return {
+      x: x,
+      y: y,
+    };
+  }
+
+  //world to ROS
+  getRos(pos) {
+    var rosX = pos.x * this.res + this.org.x;
+    var rosY = -(pos.y - this.height) * this.res + this.org.y;
+    return {
+      x: rosX,
+      y: rosY,
+    };
+  }
 
   drawMapGrid(color = "black", lineW = 1) {
     if (this.message) {
       var rosPosOrg = {
-        x: this.message.info.origin.position.x,
-        y: this.message.info.origin.position.y,
+        x: this.org.x,
+        y: this.org.y,
       };
       var rosMaxPos = {
-        x: this.message.info.origin.position.x * -1,
-        y: this.message.info.origin.position.y * -1,
+        x: this.org.x * -1,
+        y: this.org.y * -1,
       };
       var linesX = [];
 
@@ -199,7 +212,6 @@ export class ImageMapClient extends CanvasObject {
       this.engine.context.stroke();
     }
   }
-
 
   exit() {
     if (this.rosTopic) this.rosTopic.unsubscribe();

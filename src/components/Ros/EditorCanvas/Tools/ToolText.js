@@ -1,4 +1,4 @@
-import { ToolObject } from "../ToolObject";
+import { ToolDrawObject } from "./ToolDrawObject";
 import { library, icon } from "@fortawesome/fontawesome-svg-core";
 import { faTextHeight } from "@fortawesome/free-solid-svg-icons";
 
@@ -6,11 +6,11 @@ library.add(faTextHeight);
 
 const ToolCursor = icon({ prefix: "fas", iconName: "text-height" });
 
-export class ToolText extends ToolObject {
+export class ToolText extends ToolDrawObject {
   constructor(engine, options) {
     super(engine, options);
     options = options || {};
-    this.name = options.ros || "LINE";
+    this.name = options.name || "LINE";
     this.icon = ["fas", "text-height"];
     this.visible = true;
     this.enabled = true;
